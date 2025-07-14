@@ -1,103 +1,362 @@
-import Image from "next/image";
+'use client';
+import React, { useState } from 'react';
+import {
+  Send,
+  MessageCircle,
+  CheckCircle,
+  XCircle,
+  Target,
+  Hash,
+} from 'lucide-react';
 
-export default function Home() {
+// Define types for conversation messages and session data
+
+type ConversationMessage = {
+  type: 'question' | 'answer';
+  content: string;
+};
+
+type SessionData = {
+  topic: string;
+  probesAsked: number;
+  numberOfProbes: number;
+  completeness: number;
+  firstQuestion?: string;
+};
+
+const ProbeInterview = () => {
+  const [sessionId, setSessionId] = useState('');
+  const [currentQuestion, setCurrentQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [conversation, setConversation] = useState<ConversationMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionComplete, setSessionComplete] = useState(false);
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [lastSatisfactoryScore, setLastSatisfactoryScore] = useState<
+    number | null
+  >(null);
+
+  const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
+
+  const startProbe = async () => {
+    if (!sessionId.trim()) {
+      alert('Please enter a session ID');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/start-probe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSessionData(data);
+        setCurrentQuestion(data.firstQuestion);
+        setConversation([{ type: 'question', content: data.firstQuestion }]);
+        setSessionComplete(false);
+      } else {
+        alert(data.error || 'Failed to start probe');
+      }
+    } catch (error: any) {
+      alert('Error connecting to server: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const submitAnswer = async () => {
+    if (!answer.trim()) {
+      alert('Please enter an answer');
+      return;
+    }
+
+    setIsLoading(true);
+    const userAnswer = answer;
+    setAnswer('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId, answer: userAnswer }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Add user answer to conversation
+        setConversation((prev) => [
+          ...prev,
+          { type: 'answer', content: userAnswer },
+          { type: 'question', content: data.nextQuestion },
+        ]);
+
+        setCurrentQuestion(data.nextQuestion);
+        setSessionComplete(data.complete);
+        setLastSatisfactoryScore(data.satisfactoryPercent);
+
+        // Update session data with current progress
+        if (sessionData) {
+          setSessionData((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              probesAsked: data.probesAsked,
+            } as SessionData;
+          });
+        }
+      } else {
+        alert(data.error || 'Failed to submit answer');
+      }
+    } catch (error: any) {
+      alert('Error connecting to server: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: any) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (currentQuestion && !sessionComplete) {
+        submitAnswer();
+      } else if (!currentQuestion) {
+        startProbe();
+      }
+    }
+  };
+
+  const resetSession = () => {
+    setSessionId('');
+    setCurrentQuestion('');
+    setAnswer('');
+    setConversation([]);
+    setSessionComplete(false);
+    setSessionData(null);
+    setLastSatisfactoryScore(null);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <MessageCircle className="text-blue-600 w-8 h-8" />
+            <h1 className="text-3xl font-bold text-gray-800">
+              Probe Interview
+            </h1>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          {sessionData && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">
+                    Topic
+                  </span>
+                </div>
+                <p className="text-blue-900 font-semibold">
+                  {sessionData.topic}
+                </p>
+              </div>
+
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Hash className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-800">
+                    Probes
+                  </span>
+                </div>
+                <p className="text-green-900 font-semibold">
+                  {sessionData.probesAsked || 0}/{sessionData.numberOfProbes}
+                </p>
+              </div>
+
+              <div className="bg-purple-50 p-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-800">
+                    Required
+                  </span>
+                </div>
+                <p className="text-purple-900 font-semibold">
+                  {sessionData.completeness}%
+                </p>
+              </div>
+
+              <div className="bg-orange-50 p-3 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-800">
+                    Score
+                  </span>
+                </div>
+                <p className="text-orange-900 font-semibold">
+                  {lastSatisfactoryScore !== null
+                    ? `${lastSatisfactoryScore}%`
+                    : 'N/A'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Session ID Input */}
+        {!currentQuestion && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              Start Interview Session
+            </h2>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={sessionId}
+                onChange={(e) => setSessionId(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Enter session ID"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isLoading}
+              />
+              <button
+                onClick={startProbe}
+                disabled={isLoading || !sessionId.trim()}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isLoading ? 'Starting...' : 'Start Probe'}
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Conversation */}
+        {conversation.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              Conversation
+            </h2>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {conversation.map((message, index) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-lg ${
+                    message.type === 'question'
+                      ? 'bg-blue-50 border-l-4 border-blue-500'
+                      : 'bg-gray-50 border-l-4 border-gray-500'
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    {message.type === 'question' ? (
+                      <MessageCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <div className="w-5 h-5 bg-gray-400 rounded-full mt-0.5 flex-shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        {message.type === 'question' ? 'Interviewer' : 'You'}
+                      </p>
+                      <p className="text-gray-800 whitespace-pre-wrap">
+                        {message.content}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Answer Input */}
+        {currentQuestion && !sessionComplete && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              Your Answer
+            </h2>
+            <div className="space-y-3">
+              <textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your answer here..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={4}
+                disabled={isLoading}
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={submitAnswer}
+                  disabled={isLoading || !answer.trim()}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isLoading ? 'Submitting...' : 'Submit Answer'}
+                  <Send className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={resetSession}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
+                >
+                  New Session
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Session Complete */}
+        {sessionComplete && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="text-center">
+              {typeof lastSatisfactoryScore === 'number' ? (
+                lastSatisfactoryScore >= (sessionData?.completeness || 0) ? (
+                  <div className="text-green-600">
+                    <CheckCircle className="w-16 h-16 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold mb-2">
+                      Session Complete!
+                    </h2>
+                    <p className="text-gray-600">
+                      You achieved a satisfactory score of{' '}
+                      {lastSatisfactoryScore}%
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-red-600">
+                    <XCircle className="w-16 h-16 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold mb-2">Session Ended</h2>
+                    <p className="text-gray-600">
+                      You achieved {lastSatisfactoryScore}% but needed{' '}
+                      {sessionData?.completeness}%
+                    </p>
+                  </div>
+                )
+              ) : (
+                <div className="text-gray-600">
+                  <h2 className="text-2xl font-bold mb-2">Session Ended</h2>
+                  <p>No score available for this session.</p>
+                </div>
+              )}
+              <button
+                onClick={resetSession}
+                className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
+              >
+                Start New Session
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
-}
+};
+
+export default ProbeInterview;
