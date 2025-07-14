@@ -36,7 +36,7 @@ const ProbeInterview = () => {
     number | null
   >(null);
 
-  const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
+  const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
 
   const startProbe = async () => {
     if (!sessionId.trim()) {
@@ -64,8 +64,12 @@ const ProbeInterview = () => {
       } else {
         alert(data.error || 'Failed to start probe');
       }
-    } catch (error: any) {
-      alert('Error connecting to server: ' + error.message);
+    } catch (error: unknown) {
+      let message = 'Unknown error';
+      if (error instanceof Error) {
+        message = error.message;
+      }
+      alert('Error connecting to server: ' + message);
     } finally {
       setIsLoading(false);
     }
@@ -117,8 +121,12 @@ const ProbeInterview = () => {
       } else {
         alert(data.error || 'Failed to submit answer');
       }
-    } catch (error: any) {
-      alert('Error connecting to server: ' + error.message);
+    } catch (error: unknown) {
+      let message = 'Unknown error';
+      if (error instanceof Error) {
+        message = error.message;
+      }
+      alert('Error connecting to server: ' + message);
     } finally {
       setIsLoading(false);
     }
