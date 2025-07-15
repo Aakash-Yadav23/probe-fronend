@@ -38,8 +38,8 @@ const ProbeInterview = () => {
     number | null
   >(null);
 
-  // const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
-  const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
+  const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
+  // const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
 
   const startProbe = async () => {
     if (!sessionId.trim()) {
