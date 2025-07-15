@@ -30,13 +30,16 @@ const ProbeInterview = () => {
   const [answer, setAnswer] = useState('');
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [totalScore, setTotalScore] = useState(0);
   const [sessionComplete, setSessionComplete] = useState(false);
+
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [lastSatisfactoryScore, setLastSatisfactoryScore] = useState<
     number | null
   >(null);
 
-  const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
+  // const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
+  const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
 
   const startProbe = async () => {
     if (!sessionId.trim()) {
@@ -96,6 +99,8 @@ const ProbeInterview = () => {
 
       const data = await response.json();
 
+      console.log('response', data);
+
       if (response.ok) {
         // Add user answer to conversation
         setConversation((prev) => [
@@ -106,6 +111,7 @@ const ProbeInterview = () => {
 
         setCurrentQuestion(data.nextQuestion);
         setSessionComplete(data.complete);
+        setTotalScore(data.totalScore);
         setLastSatisfactoryScore(data.satisfactoryPercent);
 
         // Update session data with current progress
@@ -148,6 +154,7 @@ const ProbeInterview = () => {
     setCurrentQuestion('');
     setAnswer('');
     setConversation([]);
+    setTotalScore(0);
     setSessionComplete(false);
     setSessionData(null);
     setLastSatisfactoryScore(null);
@@ -210,11 +217,7 @@ const ProbeInterview = () => {
                     Score
                   </span>
                 </div>
-                <p className="text-orange-900 font-semibold">
-                  {lastSatisfactoryScore !== null
-                    ? `${lastSatisfactoryScore}%`
-                    : 'N/A'}
-                </p>
+                <p className="text-orange-900 font-semibold">{totalScore}</p>
               </div>
             </div>
           )}
@@ -297,7 +300,7 @@ const ProbeInterview = () => {
                 onChange={(e) => setAnswer(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type your answer here..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={4}
                 disabled={isLoading}
               />
