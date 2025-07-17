@@ -37,9 +37,10 @@ const ProbeInterview = () => {
   const [lastSatisfactoryScore, setLastSatisfactoryScore] = useState<
     number | null
   >(null);
+  const [respondentId, setRespondentId] = useState<string | null>(null);
 
-  const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
-  // const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
+  // const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
+  const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
 
   const startProbe = async () => {
     if (!sessionId.trim()) {
@@ -62,6 +63,8 @@ const ProbeInterview = () => {
       if (response.ok) {
         setSessionData(data);
         setCurrentQuestion(data.firstQuestion);
+        setRespondentId(data.respondentId);
+
         setConversation([{ type: 'question', content: data.firstQuestion }]);
         setSessionComplete(false);
       } else {
@@ -113,6 +116,7 @@ const ProbeInterview = () => {
         setSessionComplete(data.complete);
         setTotalScore(data.totalScore);
         setLastSatisfactoryScore(data.satisfactoryPercent);
+        setRespondentId(data.respondentId); // <-- Add this line
 
         // Update session data with current progress
         if (sessionData) {
@@ -158,6 +162,7 @@ const ProbeInterview = () => {
     setSessionComplete(false);
     setSessionData(null);
     setLastSatisfactoryScore(null);
+    setRespondentId(null);
   };
 
   return (
@@ -171,6 +176,11 @@ const ProbeInterview = () => {
               Probe Interview
             </h1>
           </div>
+          {respondentId && (
+            <div className="mb-2 text-sm text-gray-500">
+              Respondent ID: <span className="font-mono">{respondentId}</span>
+            </div>
+          )}
 
           {sessionData && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
