@@ -32,15 +32,17 @@ const ProbeInterview = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [totalScore, setTotalScore] = useState(0);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [startingQuestionNumber, setStartingQuestionNumber] = useState(0);
 
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [lastSatisfactoryScore, setLastSatisfactoryScore] = useState<
     number | null
   >(null);
   const [respondentId, setRespondentId] = useState<string | null>(null);
+  const [questionNumber, setQuestionNumber] = useState(0);
 
-  const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
-  // const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
+  // const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
+  const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
 
   const startProbe = async () => {
     if (!sessionId.trim()) {
@@ -64,8 +66,14 @@ const ProbeInterview = () => {
         setSessionData(data);
         setCurrentQuestion(data.firstQuestion);
         setRespondentId(data.respondentId);
-
-        setConversation([{ type: 'question', content: data.firstQuestion }]);
+        setStartingQuestionNumber(data.questionNumber);
+        setQuestionNumber(data.questionNumber);
+        setConversation([
+          {
+            type: 'question',
+            content: `Q${data.questionNumber}. ${data.firstQuestion}`,
+          },
+        ]);
         setSessionComplete(false);
       } else {
         alert(data.error || 'Failed to start probe');
@@ -106,10 +114,16 @@ const ProbeInterview = () => {
 
       if (response.ok) {
         // Add user answer to conversation
+        const nextQuestionNumber = questionNumber + 1;
+        setQuestionNumber(nextQuestionNumber);
+
         setConversation((prev) => [
           ...prev,
           { type: 'answer', content: userAnswer },
-          { type: 'question', content: data.nextQuestion },
+          {
+            type: 'question',
+            content: `Q${nextQuestionNumber}. ${data.nextQuestion}`,
+          },
         ]);
 
         setCurrentQuestion(data.nextQuestion);
@@ -163,6 +177,7 @@ const ProbeInterview = () => {
     setSessionData(null);
     setLastSatisfactoryScore(null);
     setRespondentId(null);
+    setQuestionNumber(0);
   };
 
   return (
@@ -236,7 +251,7 @@ const ProbeInterview = () => {
         {/* Session ID Input */}
         {!currentQuestion && (
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            <h2 className="text-xl font-semibold text-black mb-4">
               Start Interview Session
             </h2>
             <div className="flex gap-3">
@@ -246,7 +261,7 @@ const ProbeInterview = () => {
                 onChange={(e) => setSessionId(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Enter session ID"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 disabled={isLoading}
               />
               <button
