@@ -41,8 +41,8 @@ const ProbeInterview = () => {
   const [respondentId, setRespondentId] = useState<string | null>(null);
   const [questionNumber, setQuestionNumber] = useState(0);
 
-  // const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
-  const API_BASE_URL = 'http://localhost:3001'; // Adjust this to your backend URL
+  const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
+  // const API_BASE_URL = 'http://localhost:3001'; // Adjust t÷his to your backend URL
 
   const startProbe = async () => {
     if (!sessionId.trim()) {
