@@ -8,6 +8,7 @@ import {
   Target,
   Hash,
 } from 'lucide-react';
+import axios from 'axios';
 
 // Define types for conversation messages and session data
 
@@ -32,6 +33,9 @@ const ProbeInterview = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [totalScore, setTotalScore] = useState(0);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [sessionCompletenessRequired, setSessionCompletenessRequired] =
+    useState(0);
+
   const [startingQuestionNumber, setStartingQuestionNumber] = useState(0);
 
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
@@ -39,6 +43,10 @@ const ProbeInterview = () => {
     number | null
   >(null);
   const [respondentId, setRespondentId] = useState<string | null>(null);
+  const [sessionResponseId, setSessionResponseId] = useState<string | null>(
+    null
+  );
+
   const [questionNumber, setQuestionNumber] = useState(0);
 
   const API_BASE_URL = 'http://43.205.240.108:3001'; // Adjust this to your backend URL
@@ -52,38 +60,46 @@ const ProbeInterview = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/start-probe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSessionData(data);
-        setCurrentQuestion(data.firstQuestion);
-        setRespondentId(data.respondentId);
-        setStartingQuestionNumber(data.questionNumber);
-        setQuestionNumber(data.questionNumber);
-        setConversation([
-          {
-            type: 'question',
-            content: `Q${data.questionNumber}. ${data.firstQuestion}`,
+      const response = await axios.post(
+        `${API_BASE_URL}/api/chat/start-probe/${sessionId}`,
+        { sessionId },
+        {
+          headers: {
+            'Content-Type': 'application/json',
           },
-        ]);
-        setSessionComplete(false);
-      } else {
-        alert(data.error || 'Failed to start probe');
-      }
-    } catch (error: unknown) {
+        }
+      );
+      const data = response.data.data;
+
+      setSessionData(data);
+      setCurrentQuestion(data.firstQuestion);
+      setRespondentId(data.respondentId);
+      setStartingQuestionNumber(data.questionNumber);
+      setQuestionNumber(data.questionNumber);
+      setSessionCompletenessRequired(data.completenessRequired || 0);
+      setSessionResponseId(data.sessionResponseId);
+
+      setConversation([
+        {
+          type: 'question',
+          content: `Q${data.questionNumber}. ${data.firstQuestion}`,
+        },
+      ]);
+      setSessionComplete(false);
+    } catch (error: any) {
       let message = 'Unknown error';
-      if (error instanceof Error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          message = error.response.data?.error || error.response.statusText;
+        } else if (error.request) {
+          message = 'No response from server. Please check your connection.';
+        } else {
+          message = error.message;
+        }
+      } else if (error instanceof Error) {
         message = error.message;
       }
-      alert('Error connecting to server: ' + message);
+      alert('Error: ' + message);
     } finally {
       setIsLoading(false);
     }
@@ -100,57 +116,63 @@ const ProbeInterview = () => {
     setAnswer('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/reply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId, answer: userAnswer }),
-      });
-
-      const data = await response.json();
-
-      console.log('response', data);
-
-      if (response.ok) {
-        // Add user answer to conversation
-        const nextQuestionNumber = questionNumber + 1;
-        setQuestionNumber(nextQuestionNumber);
-
-        setConversation((prev) => [
-          ...prev,
-          { type: 'answer', content: userAnswer },
-          {
-            type: 'question',
-            content: `Q${nextQuestionNumber}. ${data.nextQuestion}`,
+      const response = await axios.post(
+        `${API_BASE_URL}/api/chat/reply/${sessionResponseId}`,
+        { answer: userAnswer },
+        {
+          headers: {
+            'Content-Type': 'application/json',
           },
-        ]);
-
-        setCurrentQuestion(data.nextQuestion);
-        setSessionComplete(data.complete);
-        setTotalScore(data.totalScore);
-        setLastSatisfactoryScore(data.satisfactoryPercent);
-        setRespondentId(data.respondentId); // <-- Add this line
-
-        // Update session data with current progress
-        if (sessionData) {
-          setSessionData((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              probesAsked: data.probesAsked,
-            } as SessionData;
-          });
         }
-      } else {
-        alert(data.error || 'Failed to submit answer');
+      );
+      const data = response.data.data;
+
+      // Add user answer to conversation
+      const nextQuestionNumber = questionNumber + 1;
+      setQuestionNumber(nextQuestionNumber);
+
+      setConversation((prev) => [
+        ...prev,
+        { type: 'answer', content: userAnswer },
+        {
+          type: 'question',
+          content: `Q${nextQuestionNumber}. ${data.nextQuestion}`,
+        },
+      ]);
+
+      setCurrentQuestion(data.nextQuestion);
+      setSessionComplete(data.complete);
+      setTotalScore(data.totalScore);
+      setLastSatisfactoryScore(data.satisfactoryPercent);
+      setRespondentId(data.respondentId);
+
+      // Update session data with current progress
+      if (sessionData) {
+        setSessionData((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            probesAsked: data.probesAsked,
+          } as SessionData;
+        });
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
+      console.log('Error', error);
       let message = 'Unknown error';
-      if (error instanceof Error) {
+      if (error?.response?.data?.message) {
+        message = error?.response?.data?.message;
+      } else if (axios.isAxiosError(error)) {
+        if (error.response) {
+          message = error.response.data?.error || error.response.statusText;
+        } else if (error.request) {
+          message = 'No response from server. Please check your connection.';
+        } else {
+          message = error.message;
+        }
+      } else if (error instanceof Error) {
         message = error.message;
       }
-      alert('Error connecting to server: ' + message);
+      alert('Error: ' + message);
     } finally {
       setIsLoading(false);
     }
@@ -231,7 +253,7 @@ const ProbeInterview = () => {
                   </span>
                 </div>
                 <p className="text-purple-900 font-semibold">
-                  {sessionData.completeness}%
+                  {sessionCompletenessRequired}%
                 </p>
               </div>
 
