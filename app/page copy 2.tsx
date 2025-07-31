@@ -27,6 +27,15 @@ type SessionData = {
 
 const ProbeInterview = () => {
   const [sessionId, setSessionId] = useState('');
+  const [topic, setTopic] = useState('');
+  const [objective, setObjective] = useState('');
+  const [numberOfProbes, setNumberOfProbes] = useState(10);
+  const [respondentIdInput, setRespondentIdInput] = useState('');
+  const [priority, setPriority] = useState<'probes' | 'completeness'>('probes');
+  const [questionNumberInput, setQuestionNumberInput] = useState(1);
+  const [completenessRequired, setCompletenessRequired] = useState(80);
+  const [firstQuestion, setFirstQuestion] = useState('');
+
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
@@ -55,16 +64,44 @@ const ProbeInterview = () => {
   // const API_BASE_URL = 'http://localhost:3001'; // Adjust t÷his to your backend URL
 
   const startProbe = async () => {
-    if (!sessionId.trim()) {
-      alert('Please enter a session ID');
+    if (!topic.trim()) {
+      alert('Please enter a topic');
+      return;
+    }
+
+    if (!objective.trim()) {
+      alert('Please enter an objective');
+      return;
+    }
+
+    if (!respondentIdInput.trim()) {
+      alert('Please enter a respondent ID');
+      return;
+    }
+
+    if (!firstQuestion.trim()) {
+      alert('Please enter the first question');
       return;
     }
 
     setIsLoading(true);
     try {
+      const requestBody = {
+        topic: topic,
+        objective: objective,
+        numberOfProbes: numberOfProbes,
+        respondentId: `respondent${respondentIdInput}`,
+        priority: priority,
+        questionNumber: questionNumberInput,
+        completenessRequired: completenessRequired,
+        firstQuestion: firstQuestion,
+      };
+
+      console.log('Request Body being sent to API:', requestBody);
+
       const response = await axios.post(
-        `${API_BASE_URL}/api/chat/start-probe/${sessionId}`,
-        { sessionId },
+        `${API_BASE_URL}/api/chat/start-probe`,
+        requestBody,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -72,6 +109,9 @@ const ProbeInterview = () => {
         }
       );
       const data = response.data.data;
+
+      console.log('API Response Data:', data);
+      console.log('sessionResponseId from API:', data.sessionResponseId);
 
       setSessionData(data);
       setCurrentQuestion(data.firstQuestion);
@@ -197,6 +237,14 @@ const ProbeInterview = () => {
 
   const resetSession = () => {
     setSessionId('');
+    setTopic('');
+    setObjective('');
+    setNumberOfProbes(10);
+    setRespondentIdInput('');
+    setPriority('probes');
+    setQuestionNumberInput(1);
+    setCompletenessRequired(80);
+    setFirstQuestion('');
     setCurrentQuestion('');
     setAnswer('');
     setConversation([]);
@@ -208,6 +256,17 @@ const ProbeInterview = () => {
     setQuestionNumber(0);
     setRequiredScore(null);
   };
+
+  console.log('topic', topic);
+  console.log('objective', objective);
+  console.log('respondentIdInput', respondentIdInput);
+  console.log('respondentId (from API)', respondentId);
+  console.log('numberOfProbes', numberOfProbes);
+  console.log('questionNumberInput', questionNumberInput);
+  console.log('questionNumber (from API)', questionNumber);
+  console.log('completenessRequired', completenessRequired);
+  console.log('priority', priority);
+  console.log('firstQuestion', firstQuestion);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -277,25 +336,156 @@ const ProbeInterview = () => {
           )}
         </div>
 
-        {/* Session ID Input */}
+        {/* Session Configuration Form */}
         {!currentQuestion && (
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
             <h2 className="text-xl font-semibold text-black mb-4">
               Start Interview Session
             </h2>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={sessionId}
-                onChange={(e) => setSessionId(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Enter session ID"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Topic *
+                </label>
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="Enter topic"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Objective *
+                </label>
+                <input
+                  type="text"
+                  value={objective}
+                  onChange={(e) => setObjective(e.target.value)}
+                  placeholder="Enter objective"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Respondent ID *
+                </label>
+                <input
+                  type="text"
+                  value={respondentIdInput}
+                  onChange={(e) => setRespondentIdInput(e.target.value)}
+                  placeholder="Enter respondent ID (will be prefixed with 'respondent')"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                  disabled={isLoading}
+                />
+                {respondentIdInput && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Will be sent as: respondent{respondentIdInput}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Probes
+                </label>
+                <input
+                  type="number"
+                  value={numberOfProbes}
+                  onChange={(e) =>
+                    setNumberOfProbes(parseInt(e.target.value) || 10)
+                  }
+                  min="1"
+                  max="50"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Question Number
+                </label>
+                <input
+                  type="number"
+                  value={questionNumberInput}
+                  onChange={(e) =>
+                    setQuestionNumberInput(parseInt(e.target.value) || 1)
+                  }
+                  min="1"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Completeness Required (%)
+                </label>
+                <input
+                  type="number"
+                  value={completenessRequired}
+                  onChange={(e) =>
+                    setCompletenessRequired(parseInt(e.target.value) || 80)
+                  }
+                  min="0"
+                  max="100"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
+                <select
+                  value={priority}
+                  onChange={(e) =>
+                    setPriority(e.target.value as 'probes' | 'completeness')
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+                  disabled={isLoading}
+                >
+                  <option value="probes">Probes</option>
+                  <option value="completeness">Completeness</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                First Question *
+              </label>
+              <textarea
+                value={firstQuestion}
+                onChange={(e) => setFirstQuestion(e.target.value)}
+                placeholder="Enter the first question to ask"
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black resize-none"
                 disabled={isLoading}
               />
+            </div>
+
+            <div className="flex gap-3">
               <button
                 onClick={startProbe}
-                disabled={isLoading || !sessionId.trim()}
+                disabled={
+                  isLoading ||
+                  !priority.trim() ||
+                  !completenessRequired ||
+                  !questionNumberInput ||
+                  !numberOfProbes ||
+                  !topic.trim() ||
+                  !objective.trim() ||
+                  !respondentIdInput.trim() ||
+                  !firstQuestion.trim()
+                }
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isLoading ? 'Starting...' : 'Start Probe'}
